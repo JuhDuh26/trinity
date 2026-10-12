@@ -146,8 +146,7 @@ void EveVolumeObject::ResolveBoxVolume()
 
 	if( m_boxVolume )
 	{
-		m_boxChangeCallbackID = m_boxVolume->RegisterForChanges( [this]()
-		{
+		m_boxChangeCallbackID = m_boxVolume->RegisterForChanges( [this]() {
 			m_transformDirty = true;
 		} );
 	}
@@ -175,10 +174,7 @@ bool EveVolumeObject::TransformsNearlyEqual( const Matrix& a, const Matrix& b )
 	const XMVECTOR axisEpsilon = XMVectorReplicate( 1e-4f );
 	const XMVECTOR translationEpsilon = XMVectorReplicate( 1e-2f ); // 1 cm
 
-	return XMVector3NearEqual( a.GetX(), b.GetX(), axisEpsilon )
-		&& XMVector3NearEqual( a.GetY(), b.GetY(), axisEpsilon )
-		&& XMVector3NearEqual( a.GetZ(), b.GetZ(), axisEpsilon )
-		&& XMVector3NearEqual( a.GetTranslation(), b.GetTranslation(), translationEpsilon );
+	return XMVector3NearEqual( a.GetX(), b.GetX(), axisEpsilon ) && XMVector3NearEqual( a.GetY(), b.GetY(), axisEpsilon ) && XMVector3NearEqual( a.GetZ(), b.GetZ(), axisEpsilon ) && XMVector3NearEqual( a.GetTranslation(), b.GetTranslation(), translationEpsilon );
 }
 
 void EveVolumeObject::PushToConsumer()
