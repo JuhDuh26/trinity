@@ -308,9 +308,10 @@ void EveVolumeObject::RenderDebugInfo( ITr2DebugRenderer2& renderer )
 void EveVolumeObject::RegisterComponents()
 {
 	// ReregisterEntities: put the shape straight back
-	if( m_resendOnRegister && m_pushedConsumer && m_boxVolume )
+	if( m_resendOnRegister )
 	{
-		SendTransform( m_lastSentTransform );
+		ResolveBoxVolume();
+		PushToConsumer();
 	}
 	m_resendOnRegister = false;
 }
