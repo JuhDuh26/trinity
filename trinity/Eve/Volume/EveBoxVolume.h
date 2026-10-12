@@ -41,9 +41,6 @@ public:
 	{
 		return m_boxTransform;
 	}
-	{
-		return m_boxTransform;
-	}
 
 private:
 	void Setup();
