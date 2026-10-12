@@ -4,7 +4,7 @@
 #include "EveVolumeObject.h"
 
 BLUE_DEFINE( EveVolumeObject );
-BLUE_DEFINE_INTERFACE( ITr2VolumeObject );
+BLUE_DEFINE_INTERFACE( ITr2BoxVolume );
 
 const Be::ClassInfo* EveVolumeObject::ExposeToBlue()
 {

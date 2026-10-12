@@ -19,10 +19,10 @@
 #endif
 
 #include <ITriFunction.h>
-#include <ITr2VolumeObject.h>
+#include <ITr2BoxVolume.h>
 
 BLUE_DECLARE( EveBoxVolume );
-BLUE_DECLARE_INTERFACE( ITr2VolumeObject );
+BLUE_DECLARE_INTERFACE( ITr2BoxVolume );
 BLUE_DECLARE( EveVolumeObject );
 
 /**
@@ -124,9 +124,9 @@ private:
 	bool m_enabled;
 
 	/// Whoever the scene file attached to receive the shape.
-	ITr2VolumeObjectPtr m_consumer;
+	ITr2BoxVolumePtr m_consumer;
 	/// The consumer the shape was pushed to.
-	ITr2VolumeObjectPtr m_pushedConsumer;
+	ITr2BoxVolumePtr m_pushedConsumer;
 	EveBoxVolumePtr m_boxVolume;
 	uint32_t m_boxChangeCallbackID;
 	bool m_warnedAboutVolumes;
