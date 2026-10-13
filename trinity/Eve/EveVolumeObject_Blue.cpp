@@ -22,16 +22,16 @@ const Be::ClassInfo* EveVolumeObject::ExposeToBlue()
 			Be::READWRITE | Be::PERSIST )
 
 		MAP_ATTRIBUTE(
-			"volumes",
-			m_volumes,
-			"The volumes defining the shape. Only the first box volume is used.",
-			Be::READ | Be::PERSIST )
-
-		MAP_ATTRIBUTE(
-			"consumer",
-			m_consumer,
-			"The object that receives the shape of this volume, attached by the scene file",
+			"boxVolume",
+			m_boxVolume,
+			"The box volume defining the shape",
 			Be::READWRITE | Be::PERSIST )
+
+		MAP_PROPERTY_PERSISTED(
+			"consumer",
+			GetConsumer,
+			SetConsumer,
+			"The object that receives the shape of this volume, attached by the scene file" )
 
 		MAP_ATTRIBUTE(
 			"enabled",

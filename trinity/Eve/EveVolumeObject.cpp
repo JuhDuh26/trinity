@@ -6,62 +6,40 @@
 
 EveVolumeObject::EveVolumeObject( IRoot* lockobj ) :
 	EveEntity( lockobj ),
-	PARENTLOCK( m_volumes ),
 	m_worldTransform( IdentityMatrix() ),
 	m_enabled( true ),
-	m_boxChangeCallbackID( 0 ),
-	m_warnedAboutVolumes( false ),
 	m_lastSentTransform( IdentityMatrix() ),
 	m_hasSentTransform( false ),
 	m_lastSentEnabled( true ),
-	m_transformDirty( false ),
 	m_resendOnRegister( false )
 {
 }
 
 EveVolumeObject::~EveVolumeObject()
 {
-	if( m_boxVolume && m_boxChangeCallbackID != 0 )
-	{
-		m_boxVolume->UnregisterForChanges( m_boxChangeCallbackID );
-	}
-
 	// scenes don't unregister their objects when they are destroyed
 	RemoveFromConsumer();
 }
 
+ITr2BoxVolumePtr EveVolumeObject::GetConsumer() const
+{
+	return m_consumer;
+}
+
+void EveVolumeObject::SetConsumer( ITr2BoxVolume* consumer )
+{
+	if( m_consumer.p == consumer )
+	{
+		return;
+	}
+
+	RemoveFromConsumer();
+	m_consumer = consumer;
+}
+
 void EveVolumeObject::RebuildBoundingSphere()
 {
-	TRINITY_STATS_ZONE( __FUNCTION__ );
-
-	m_boundingSphere = CcpMath::Sphere();
-
-	for( const auto& volume : m_volumes )
-	{
-		auto volumeSphere = volume->GetBoundingSphere();
-
-		if( !volumeSphere.IsInitialized() )
-		{
-			continue;
-		}
-
-		if( !m_boundingSphere.IsInitialized() || volumeSphere.IsSphereInside( m_boundingSphere ) )
-		{
-			m_boundingSphere = volumeSphere;
-			continue;
-		}
-
-		if( m_boundingSphere.IsSphereInside( volumeSphere ) )
-		{
-			continue;
-		}
-
-		Vector3 delta = volumeSphere.center - m_boundingSphere.center;
-		float deltaLen = Length( delta );
-
-		m_boundingSphere.center += 0.5f * ( 1.f + ( volumeSphere.radius - m_boundingSphere.radius ) / deltaLen ) * delta;
-		m_boundingSphere.radius = 0.5f * ( m_boundingSphere.radius + volumeSphere.radius + deltaLen );
-	}
+	m_boundingSphere = m_boxVolume ? m_boxVolume->GetBoundingSphere() : CcpMath::Sphere();
 }
 
 void EveVolumeObject::UpdateWorldTransform( Be::Time time )
@@ -90,81 +68,18 @@ void EveVolumeObject::UpdateWorldTransform( Be::Time time )
 	m_worldTransform = RotationMatrix( rotation ) * TranslationMatrix( translation );
 }
 
-void EveVolumeObject::ResolveBoxVolume()
-{
-	if( m_boxVolume )
-	{
-		bool stillListed = false;
-		for( const auto& volume : m_volumes )
-		{
-			if( volume == static_cast<IEveVolume*>( m_boxVolume.p ) )
-			{
-				stillListed = true;
-				break;
-			}
-		}
-
-		if( !stillListed )
-		{
-			if( m_boxChangeCallbackID != 0 )
-			{
-				m_boxVolume->UnregisterForChanges( m_boxChangeCallbackID );
-				m_boxChangeCallbackID = 0;
-			}
-			m_boxVolume = nullptr;
-			m_warnedAboutVolumes = false;
-			m_transformDirty = true;
-			RemoveFromConsumer();
-		}
-	}
-
-	if( m_boxVolume || m_volumes.empty() )
-	{
-		return;
-	}
-
-	for( const auto& volume : m_volumes )
-	{
-		if( EveBoxVolumePtr box = BlueCastPtr( volume ) )
-		{
-			if( !m_boxVolume )
-			{
-				m_boxVolume = box;
-			}
-			else if( !m_warnedAboutVolumes )
-			{
-				CCP_LOGWARN( "EveVolumeObject '%s': only the first box volume is used, extra volumes are ignored.", m_name.c_str() );
-				m_warnedAboutVolumes = true;
-			}
-		}
-		else if( !m_warnedAboutVolumes )
-		{
-			CCP_LOGWARN( "EveVolumeObject '%s': only box volumes are supported, other volume types are ignored.", m_name.c_str() );
-			m_warnedAboutVolumes = true;
-		}
-	}
-
-	if( m_boxVolume )
-	{
-		m_boxChangeCallbackID = m_boxVolume->RegisterForChanges( [this]() {
-			m_transformDirty = true;
-		} );
-	}
-}
-
 void EveVolumeObject::SendTransform( const Matrix& unitBoxToWorld )
 {
-	m_pushedConsumer->SetTransform( unitBoxToWorld );
+	m_consumer->SetTransform( unitBoxToWorld );
 	m_lastSentTransform = unitBoxToWorld;
 	m_hasSentTransform = true;
-	m_transformDirty = false;
 }
 
 void EveVolumeObject::RemoveFromConsumer()
 {
-	if( m_pushedConsumer && m_hasSentTransform )
+	if( m_consumer && m_hasSentTransform )
 	{
-		m_pushedConsumer->Remove();
+		m_consumer->Remove();
 	}
 	m_hasSentTransform = false;
 }
@@ -179,29 +94,27 @@ bool EveVolumeObject::TransformsNearlyEqual( const Matrix& a, const Matrix& b )
 
 void EveVolumeObject::PushToConsumer()
 {
-	if( m_pushedConsumer.p != m_consumer.p )
-	{
-		RemoveFromConsumer();
-		m_pushedConsumer = m_consumer;
-		// make sure a new consumer gets the enabled state
-		m_lastSentEnabled = !m_enabled;
-	}
-
-	if( !m_pushedConsumer || !m_boxVolume )
+	if( !m_consumer )
 	{
 		return;
 	}
 
-	// a consumer starts enabled, so the enabled state goes before the shape
-	if( m_enabled != m_lastSentEnabled )
+	if( !m_boxVolume )
 	{
-		m_pushedConsumer->SetEnabled( m_enabled );
+		RemoveFromConsumer();
+		return;
+	}
+
+	// a consumer starts enabled, so the enabled state goes before the shape
+	if( !m_hasSentTransform || m_enabled != m_lastSentEnabled )
+	{
+		m_consumer->SetEnabled( m_enabled );
 		m_lastSentEnabled = m_enabled;
 	}
 
 	// relative to the ego ball, so this changes whenever the player moves
 	const Matrix unitBoxToWorld = m_boxVolume->GetBoxTransform() * m_worldTransform;
-	if( !m_hasSentTransform || m_transformDirty || !TransformsNearlyEqual( unitBoxToWorld, m_lastSentTransform ) )
+	if( !m_hasSentTransform || !TransformsNearlyEqual( unitBoxToWorld, m_lastSentTransform ) )
 	{
 		SendTransform( unitBoxToWorld );
 	}
@@ -215,8 +128,6 @@ void EveVolumeObject::UpdateSyncronous( const EveUpdateContext& updateContext )
 	UpdateWorldTransform( updateContext.GetTime() );
 
 	RebuildBoundingSphere();
-
-	ResolveBoxVolume();
 
 	PushToConsumer();
 }
@@ -253,7 +164,7 @@ void EveVolumeObject::GetModelCenterWorldPosition( Vector3& position ) const
 
 bool EveVolumeObject::GetLocalBoundingBox( Vector3& min, Vector3& max )
 {
-	// Fall back to a unit box when no volumes are set up yet, so the object stays pickable in Graphite.
+	// Fall back to a unit box when no box is set up yet, so the object stays pickable in Graphite.
 	float radius = std::max( m_boundingSphere.radius, 1.0f );
 	Vector3 extent( radius, radius, radius );
 
@@ -281,7 +192,6 @@ bool EveVolumeObject::Initialize()
 {
 	UpdateWorldTransform( Be::Time( 0.0 ) );
 	RebuildBoundingSphere();
-	ResolveBoxVolume();
 	return true;
 }
 
@@ -292,15 +202,12 @@ void EveVolumeObject::GetDebugOptions( Tr2DebugRendererOptions& options )
 
 void EveVolumeObject::RenderDebugInfo( ITr2DebugRenderer2& renderer )
 {
-	if( renderer.HasOption( GetRawRoot(), "Volume Objects" ) )
+	if( m_boxVolume && renderer.HasOption( GetRawRoot(), "Volume Objects" ) )
 	{
 		// cyan when active, grey when disabled
 		const Color color = m_enabled ? 0xFF33DDFF : 0xFF666666;
 
-		for( const auto& volume : m_volumes )
-		{
-			volume->RenderDebugInfo( renderer, m_worldTransform, color );
-		}
+		m_boxVolume->RenderDebugInfo( renderer, m_worldTransform, color );
 	}
 }
 
@@ -310,7 +217,6 @@ void EveVolumeObject::RegisterComponents()
 	// ReregisterEntities: put the shape straight back
 	if( m_resendOnRegister )
 	{
-		ResolveBoxVolume();
 		PushToConsumer();
 	}
 	m_resendOnRegister = false;

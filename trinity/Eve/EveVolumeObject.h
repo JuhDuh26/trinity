@@ -9,7 +9,6 @@
 #include "IEveSpaceObject2.h"
 #include "EveEntity.h"
 #include "Tr2DebugRenderer.h"
-#include "Eve/Volume/IEveVolume.h"
 
 #ifdef BLUE_USE_LOCAL_ITr2DebugRenderer2
 
@@ -78,8 +77,15 @@ public:
 	void UnRegisterComponents() override;
 
 private:
+	ITr2BoxVolumePtr GetConsumer() const;
+
 	/**
-	 * @brief Recomputes the broad-phase bounding sphere from the volume list.
+	 * @brief Takes the shape back from the current consumer before switching to the new one.
+	 */
+	void SetConsumer( ITr2BoxVolume * consumer );
+
+	/**
+	 * @brief Recomputes the broad-phase bounding sphere from the box volume.
 	 */
 	void RebuildBoundingSphere();
 
@@ -87,11 +93,6 @@ private:
 	 * @brief Rebuilds the world transform from the position and rotation curves.
 	 */
 	void UpdateWorldTransform( Be::Time time );
-
-	/**
-	 * @brief Picks the box volume that defines the shape and listens for edits to it.
-	 */
-	void ResolveBoxVolume();
 
 	/**
 	 * @brief Pushes the enabled state and, when it changed, the unit box world transform to the consumer.
@@ -114,7 +115,7 @@ private:
 	static bool TransformsNearlyEqual( const Matrix& a, const Matrix& b );
 
 	std::string m_name;
-	PIEveVolumeVector m_volumes;
+	EveBoxVolumePtr m_boxVolume;
 
 	ITriVectorFunctionPtr m_ballPosition;
 	ITriQuaternionFunctionPtr m_ballRotation;
@@ -125,16 +126,10 @@ private:
 
 	/// Whoever the scene file attached to receive the shape.
 	ITr2BoxVolumePtr m_consumer;
-	/// The consumer the shape was pushed to.
-	ITr2BoxVolumePtr m_pushedConsumer;
-	EveBoxVolumePtr m_boxVolume;
-	uint32_t m_boxChangeCallbackID;
-	bool m_warnedAboutVolumes;
 
 	Matrix m_lastSentTransform;
 	bool m_hasSentTransform;
 	bool m_lastSentEnabled;
-	bool m_transformDirty;
 	/// Set when leaving a scene with a shape out, so registering again.
 	bool m_resendOnRegister;
 };
