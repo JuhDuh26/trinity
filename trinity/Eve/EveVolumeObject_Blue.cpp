@@ -27,7 +27,12 @@ const Be::ClassInfo* EveVolumeObject::ExposeToBlue()
 			"The box volume defining the shape",
 			Be::READWRITE | Be::PERSIST )
 
-		MAP_PROPERTY_PERSISTED(
+		MAP_ATTRIBUTE(
+			"consumer",
+			m_consumer,
+			"",
+			Be::PERSISTONLY )
+		MAP_PROPERTY(
 			"consumer",
 			GetConsumer,
 			SetConsumer,
