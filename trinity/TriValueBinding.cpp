@@ -8,6 +8,8 @@
 #include "include/ITriQuaternion.h"
 #include "include/ITriMatrix.h"
 
+#include <ITriFunction.h>
+
 TriValueBinding::TriValueBinding( IRoot* lockobj ) :
 	m_isWeak( false ),
 	m_isEnabled( true ),
@@ -17,6 +19,7 @@ TriValueBinding::TriValueBinding( IRoot* lockobj ) :
 	m_copyFunc( NULL ),
 	m_scale( 1.0f ),
 	m_offset( 0.0f, 0.0f, 0.0f, 0.0f ),
+	m_timeOffset( 0.0f ),
 	m_sourceItemOffset( 0 ),
 	m_destItemOffset( 0 )
 {
@@ -60,6 +63,31 @@ void TriValueBinding::CopyValue()
 	{
 		m_copyValueCallable.CallVoid( GetCurrentSourceObject(), GetCurrentDestinationObject() );
 	}
+}
+
+void TriValueBinding::CopyValueSampledAt( double sampleTime, double restoreTime )
+{
+	if( !m_isEnabled )
+	{
+		return;
+	}
+
+	ITriFunctionPtr sourceCurve( BlueCastPtr( GetCurrentSourceObject() ) );
+	if( !sourceCurve )
+	{
+		// The source isn't a curve, so there is no time to sample it at - copy
+		// whatever it holds, exactly as an unoffset binding would.
+		CopyValue();
+		return;
+	}
+
+	sourceCurve->UpdateValue( sampleTime );
+	CopyValue();
+
+	// Put the curve back where the curve set left it. Its current value is
+	// shared state: other bindings on the same curve, and anything reading
+	// currentValue, must not see this binding's time.
+	sourceCurve->UpdateValue( restoreTime );
 }
 
 bool TriValueBinding::OnModified( Be::Var* val )
@@ -802,6 +830,11 @@ bool TriValueBinding::IsValid() const
 void TriValueBinding::SetScale( float scale )
 {
 	m_scale = scale;
+}
+
+void TriValueBinding::SetTimeOffset( float timeOffset )
+{
+	m_timeOffset = timeOffset;
 }
 
 IRoot* TriValueBinding::GetCurrentSourceObject() const

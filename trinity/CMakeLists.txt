@@ -1857,6 +1857,9 @@ if(BUILD_FOR_PYTHON_2)
     add_library(CcpImageIO ALIAS ImageIO)
     find_package(CcpParser REQUIRED NO_CMAKE_PATH)
     find_package(CarbonMesh CONFIG REQUIRED)
+    # The vendored ImageIO is built with Tracy lock instrumentation, so its objects
+    # reference __tracy_*_lockable_ctx, which only the Tracy client defines.
+    find_package(Tracy CONFIG QUIET)
 else()
     find_package(Freetype REQUIRED)
     if(WITH_GRANNY)
@@ -1891,6 +1894,10 @@ function(set_shared_trinity_properties target)
 			GPUOpen::VulkanMemoryAllocator
             CarbonMesh
     )
+
+    if(TARGET Tracy::TracyClient)
+        target_link_libraries(${target} PRIVATE Tracy::TracyClient)
+    endif()
 
     target_sources(${target} PRIVATE ${_SOURCES})
     if(WITH_GRANNY)

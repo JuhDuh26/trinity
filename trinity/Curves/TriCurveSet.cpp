@@ -160,8 +160,39 @@ void TriCurveSet::Apply()
 
 	for( ITr2ValueBindingVector::const_iterator it = m_bindings.begin(); it != m_bindings.end(); ++it )
 	{
-		( *it )->CopyValue();
+		const float timeOffset = ( *it )->GetTimeOffset();
+		if( timeOffset != 0.0f )
+		{
+			( *it )->CopyValueSampledAt( GetOffsetTime( m_scaledTime, timeOffset ), m_scaledTime );
+		}
+		else
+		{
+			( *it )->CopyValue();
+		}
 	}
+}
+
+double TriCurveSet::GetOffsetTime( double time, float timeOffset ) const
+{
+	double offsetTime = time - (double)timeOffset;
+
+	// A looped time range is the window the curves play in, so an offset has to
+	// wrap inside it rather than walk off the start of the range.
+	if( m_hasTimeRange && m_loopedTimeRange )
+	{
+		const double span = m_timeRangeMax - m_timeRangeMin;
+		if( span > 0.0 )
+		{
+			offsetTime = std::fmod( offsetTime - m_timeRangeMin, span );
+			if( offsetTime < 0.0 )
+			{
+				offsetTime += span;
+			}
+			offsetTime += m_timeRangeMin;
+		}
+	}
+
+	return offsetTime;
 }
 
 void TriCurveSet::ApplyTime( double time )

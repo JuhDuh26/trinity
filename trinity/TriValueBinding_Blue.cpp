@@ -79,6 +79,17 @@ const Be::ClassInfo* TriValueBinding::ExposeToBlue()
 			m_offset,
 			"Offset of source value, added to it after the scaling, before being applied to destination",
 			Be::READWRITE | Be::PERSIST )
+		MAP_ATTRIBUTE(
+			"timeOffset",
+			m_timeOffset,
+			"Time offset, in seconds, applied to the source curve of this binding.\n"
+			"The curve is sampled at (curve set time - timeOffset), so a positive\n"
+			"value makes this binding lag behind the curve set, a negative one makes\n"
+			"it run ahead. This lets several bindings drive different targets from\n"
+			"the same curve at different times, without duplicating the curve.\n"
+			"Only applies to bindings whose source is a curve driven by the curve set\n"
+			"that owns them.",
+			Be::READWRITE | Be::PERSIST )
 #if BLUE_WITH_PYTHON
 		MAP_ATTRIBUTE(
 			"copyValueCallable",
