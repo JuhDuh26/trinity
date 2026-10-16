@@ -6,7 +6,8 @@
 
 EveChildModifierShake::EveChildModifierShake( IRoot* lockobj ) :
 	m_frequency( 1.f ),
-	m_amplitude( 1.f )
+	m_amplitude( 1.f ),
+	m_timeOffset( 0.f )
 {
 }
 
@@ -16,38 +17,18 @@ EveChildModifierShake::~EveChildModifierShake()
 
 Matrix EveChildModifierShake::ApplyTransform( const Matrix& transform, size_t, const Float4x3* ) const
 {
-	// Randomized direction on the sphere + signed radius from multi-octave noise.
-	// Radius crosses through zero so the offset reaches every signed axis from the origin.
 	// Absolute time only — never accumulated — so the object cannot drift.
-	const double time = TimeAsDouble( BeOS->GetCurrentFrameTime() );
-	const double seed = double( uintptr_t( this ) & 0xfff );
+	const double time = TimeAsDouble( BeOS->GetCurrentFrameTime() ) + double( m_timeOffset );
 	const int octaves = 8;
 
-	auto unitNoise = [&]( double phaseOffset ) -> float {
-		const float n = float( PerlinNoise1D( ( time + seed + phaseOffset ) * double( m_frequency ), 2.0, 2.0, octaves ) );
-		// Fold any Perlin range into [0, 1] via a bounded sin so direction sampling stays well-defined.
-		return 0.5f * ( sinf( n * 17.13f ) + 1.f );
+	// One independent noise channel per axis, each within (-amplitude, +amplitude).
+	// Channels are offset after the frequency scale so they stay decorrelated at any frequency,
+	// and the offsets differ in their fractional part so the axes never cross zero together.
+	auto noise = [&]( double channelOffset ) -> float {
+		return m_amplitude * float( PerlinNoise1D( time * double( m_frequency ) + channelOffset, 2.0, 2.0, octaves ) );
 	};
 
-	const float u = unitNoise( 1.1 );
-	const float v = unitNoise( 10.1 );
-	const float w = unitNoise( 18.3 );
-
-	// Uniform-ish direction on the unit sphere (theta azimuth, phi from cos mapping).
-	const float theta = u * ( 2.f * TRI_PI );
-	const float cosPhi = 2.f * v - 1.f;
-	const float sinPhi = sqrtf( cosPhi * cosPhi > 1.f ? 0.f : ( 1.f - cosPhi * cosPhi ) );
-
-	// Signed radius in [-amplitude, +amplitude] so motion passes through the origin
-	// into the opposite octant (up/down, left/right, forward/back).
-	const float radius = m_amplitude * sinf( w * ( 2.f * TRI_PI ) );
-
-	const Vector3 offset(
-		radius * sinPhi * cosf( theta ),
-		radius * cosPhi,
-		radius * sinPhi * sinf( theta ) );
-
 	Matrix result = transform;
-	result.GetTranslation() += offset;
+	result.GetTranslation() += Vector3( noise( 17.31 ), noise( 53.77 ), noise( 89.13 ) );
 	return result;
 }

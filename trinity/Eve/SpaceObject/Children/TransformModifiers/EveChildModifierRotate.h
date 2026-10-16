@@ -19,6 +19,7 @@ public:
 
 private:
 	Vector3 m_rotationSpeed;
+	float m_timeOffset;
 };
 
 TYPEDEF_BLUECLASS( EveChildModifierRotate );

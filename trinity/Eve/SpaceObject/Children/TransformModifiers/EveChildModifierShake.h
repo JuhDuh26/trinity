@@ -20,6 +20,7 @@ public:
 private:
 	float m_frequency;
 	float m_amplitude;
+	float m_timeOffset;
 };
 
 TYPEDEF_BLUECLASS( EveChildModifierShake );
