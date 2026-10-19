@@ -5,6 +5,7 @@
 #include "Utilities/BoundingBox.h"
 #include "Utilities/BoundingSphere.h"
 #include "Utilities/MatrixUtils.h"
+#include "Utilities/Obb.h"
 
 #include "include/ITr2DebugRenderer.h"
 #include "Include/TriMath.h"
@@ -1246,6 +1247,10 @@ void EveSpaceObject2::GetBatchesFromOverlayVector( ITriRenderBatchAccumulator* b
 		return;
 	}
 
+	if( !mesh )
+	{
+		return;
+	}
 	TriGeometryRes* geomRes = mesh->GetGeometryResource();
 	if( !geomRes || !geomRes->IsGood() )
 	{
@@ -1603,7 +1608,7 @@ void EveSpaceObject2::UpdateVisibility( const EveUpdateContext& updateContext, c
 	auto& frustum = updateContext.GetFrustum();
 	auto minLodThreshold = updateContext.GetLowDetailThreshold();
 	auto mediumLodThreshold = updateContext.GetMediumDetailThreshold();
-	auto invLodFactor = updateContext.GetLodFactor();
+	auto invLodFactor = updateContext.GetInvLodFactor();
 
 	if( m_boundingSphereRadius > 0.0f )
 	{
@@ -1929,7 +1934,7 @@ void EveSpaceObject2::EnsureChildLocatorMerged() const
 			auto transform = TransformationMatrix( locator->scale, locator->direction, locator->position ) * childLocatorSet.childToObject;
 			Locator transformedLocator;
 			transformedLocator.boneIndex = -1;
-			Decompose( transformedLocator.scale, transformedLocator.direction, transformedLocator.position, transform );
+			DecomposeMirrorAware( transformedLocator.scale, transformedLocator.direction, transformedLocator.position, transform );
 			transformedLocator.partTag = locator->partTag;
 			( *mergedLocatorSet )->Append( &transformedLocator, 1 );
 		}
@@ -4198,11 +4203,11 @@ void EveSpaceObject2::GetPickingBatches( ITriRenderBatchAccumulator* batches, Tr
 	}
 }
 
-bool EveSpaceObject2::GetWorldBoundingBox( Vector3& min, Vector3& max ) const
+bool EveSpaceObject2::GetOrientedBoundingBox( Vector3& localMin, Vector3& localMax, Matrix& localToWorld ) const
 {
-	min = m_localAabbMin;
-	max = m_localAabbMax;
-	BoundingBoxTransform( min, max, m_worldTransform );
+	localMin = m_localAabbMin;
+	localMax = m_localAabbMax;
+	localToWorld = m_worldTransform;
 	return true;
 }
 

@@ -100,7 +100,6 @@ Tr2VolumetricsRenderer::Tr2VolumetricsRenderer( IRoot* ) :
 	}
 
 	{
-		m_testValue = 0.0f;
 		Matrix4dFromMatrix( m_godRayNoiseMatrix, IdentityMatrix() );
 	}
 
@@ -357,10 +356,6 @@ void Tr2VolumetricsRenderer::UpdateFogSettings( const EveComponentRegistry& regi
 		return a->priority > b->priority;
 	} );
 
-	//m_froxelFogSettings = OldPriorityBlend( overrides );
-
-	//std::vector<ITr2FroxelFogSettings::FroxelFogSettings*> test;
-
 #define FROXEL_ACCUMULATE( setting ) m_froxelFogSettings.setting = PriorityBlend::Accumulate( &ITr2FroxelFogSettings::FroxelFogSettings::setting, overrides )
 
 	FROXEL_ACCUMULATE( thickness );
@@ -380,6 +375,8 @@ void Tr2VolumetricsRenderer::UpdateFogSettings( const EveComponentRegistry& regi
 	FROXEL_ACCUMULATE( fogNoiseIntensity );
 	FROXEL_ACCUMULATE( fogNoiseFrequency );
 	FROXEL_ACCUMULATE( fogNoiseMovementSpeed );
+
+	FROXEL_ACCUMULATE( reflectionIntensity );
 
 	if( m_logBlending )
 	{
@@ -730,7 +727,8 @@ Tr2GpuResourcePool::Texture Tr2VolumetricsRenderer::RenderFog(
 				resources.rtCalculateFroxels->SetParameter( BlueSharedString( "RtFroxelOutputTexture" ), fogFroxels );
 
 				resources.rtCalculateFroxels->SetParameter( BlueSharedString( "RtShadowScene" ), raytracingGeometry );
-				resources.rtCalculateFroxels->ApplyMaterialDataForRtState( techniqueIndex, pipelineState, renderContext );
+				renderContext.SetRtPipelineState( pipelineState, rayGenName.c_str() );
+				resources.rtCalculateFroxels->ApplyMaterialDataForRtState( techniqueIndex, renderContext );
 				renderContext.UseAccelerationStructure( raytracingGeometry->GetTLAS() );
 
 				{
@@ -1063,6 +1061,7 @@ void Tr2VolumetricsRenderer::PopulatePerFrameData( FroxelPerFrameData& data )
 	data.EnvironmentIntensity = m_froxelFogSettings.environmentIntensity.value;
 
 	data.EnvironmentG = environmentG;
+	data.FogMultiplier = m_isReflectionProbe ? std::clamp( m_froxelFogSettings.reflectionIntensity.value, 0.0f, 1.0f ) : 1.0f;
 
 	for( int32_t i = 0; i < m_planets.size(); i++ )
 	{
