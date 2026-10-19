@@ -11,6 +11,7 @@ if(BUILD_FOR_PYTHON_2)
     set(BUILD_METAL ON)
     set(BUILD_SHADER_COMPILER ON)
     set(INSTALL_TO_MONOLITH ON)
+    set(BUILD_TESTING OFF)
 
 else()
     # Feature options
@@ -49,6 +50,14 @@ else()
 endif()
 
 project(carbon-trinity VERSION 1.0.0)
+
+if(PROJECT_IS_TOP_LEVEL)
+    option(BUILD_TESTING "Build tests. Enabled by default." ON)
+endif()
+
+if(BUILD_TESTING)
+    enable_testing()
+endif()
 
 if (BUILD_FOR_PYTHON_2)
     if(NOT DEFINED ENV{CCP_EVE_PERFORCE_BRANCH_PATH})
@@ -94,3 +103,41 @@ endif ()
 
 add_subdirectory(trinityal)
 add_subdirectory(trinity)
+add_subdirectory(shaders)
+
+if(CMAKE_PROJECT_NAME STREQUAL carbon-trinity AND NOT BUILD_FOR_PYTHON_2)
+    # Determine if/when to generate/build documentation. The rules are as follows:
+    # - If running locally - Build documentation is OFF by default
+    # - If running on a build agent (TeamCity) - Build documentation is ON by default
+    # - If -DBUILD_DOCUMENTATION=ON/OFF flag is explicitly set, use it.
+    set(BUILD_DOCUMENTATION_DEFAULT_FLAG OFF)
+    if(DEFINED ENV{TEAMCITY_VERSION})
+        set(BUILD_DOCUMENTATION_DEFAULT_FLAG ON)
+    endif()
+    message(STATUS "Document generation settings: default=${BUILD_DOCUMENTATION_DEFAULT_FLAG}, option BUILD_DOCUMENTATION=${BUILD_DOCUMENTATION}")
+    option(BUILD_DOCUMENTATION "Build Documentation" ${BUILD_DOCUMENTATION_DEFAULT_FLAG})
+
+    if(BUILD_DOCUMENTATION)
+        set(SPHINX_SOURCE ${CMAKE_CURRENT_SOURCE_DIR}/doc/source)
+        set(SPHINX_BUILD ${CMAKE_CURRENT_BINARY_DIR}/doc/build)
+
+        find_package(Python3 COMPONENTS Interpreter REQUIRED)
+
+        file(GLOB_RECURSE TRINITY_DOCS_SOURCE_FILES CONFIGURE_DEPENDS
+            ${CMAKE_CURRENT_SOURCE_DIR}/trinity/Eve/SpaceObject/*.h
+            ${CMAKE_CURRENT_SOURCE_DIR}/trinity/Eve/SpaceObject/*.cpp)
+
+        create_carbon_docs_sphinx_target(
+                PYTHON_EXE ${Python3_EXECUTABLE}
+                VENV_NAME docs_generation_venv
+                PYTHONPATH_ENV $ENV{PYTHONPATH}
+                SPHINX_SOURCE ${SPHINX_SOURCE}
+                SPHINX_BUILD ${SPHINX_BUILD}
+                DOXYGEN_SRC_FILES ${TRINITY_DOCS_SOURCE_FILES}
+                SPHINX_TARGET_NAME Sphinx
+                DOXYGEN_TARGET_NAME Doxygen
+                INSTALL_DESTINATION documentation/trinity
+        )
+    endif()
+endif()
+

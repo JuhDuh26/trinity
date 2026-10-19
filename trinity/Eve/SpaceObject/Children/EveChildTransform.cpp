@@ -76,7 +76,7 @@ void EveChildTransform::UpdateTransform( const Matrix& parentTransform )
 		Quaternion rotation;
 		Matrix modifiedParentTransform;
 
-		Decompose( scale, rotation, translation, parentTransform );
+		DecomposeMirrorAware( scale, rotation, translation, parentTransform );
 
 		if( m_useStaticScale )
 		{
@@ -96,4 +96,9 @@ void EveChildTransform::UpdateTransform( const Matrix& parentTransform )
 			m_worldTransform = m_localTransform * modifiedParentTransform;
 		}
 	}
+}
+
+Matrix EveChildTransform::ComputeLocalTransform() const
+{
+	return ( m_staticTransform || !m_useSRT ) ? m_localTransform : TransformationMatrix( m_scaling, m_rotation, m_translation );
 }

@@ -260,17 +260,17 @@ struct Tr2TextureAL::MipMapGenerator
 			else
 			{
 				auto restore = TrinityALImpl::Transition( m_staging, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST );
-				commandList->ResourceBarrier( 1, &restore );
+				TrinityALImpl::ResourceBarrier( commandList, 1, &restore );
 			}
 
 			staging = m_staging;
 
 			// Copy the resource to staging
 			auto from = TrinityALImpl::Transition( resource, resourceState, D3D12_RESOURCE_STATE_COPY_SOURCE );
-			commandList->ResourceBarrier( 1, &from );
+			TrinityALImpl::ResourceBarrier( commandList, 1, &from );
 			commandList->CopyResource( staging, resource );
 			auto to = TrinityALImpl::Transition( staging, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE );
-			commandList->ResourceBarrier( 1, &to );
+			TrinityALImpl::ResourceBarrier( commandList, 1, &to );
 		}
 		else
 		{
@@ -279,7 +279,7 @@ struct Tr2TextureAL::MipMapGenerator
 			if( ( resourceState & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE ) == 0 )
 			{
 				auto barrier = TrinityALImpl::Transition( staging, resourceState, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE );
-				commandList->ResourceBarrier( 1, &barrier );
+				TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 			}
 			else
 			{
@@ -390,7 +390,7 @@ struct Tr2TextureAL::MipMapGenerator
 				srv2uavDescs[i].Transition.Subresource = mip + ( i * desc.MipLevels );
 				uav2srvDescs[i].Transition.Subresource = mip + ( i * desc.MipLevels );
 			}
-			commandList->ResourceBarrier( desc.DepthOrArraySize, srv2uavDescs.data() );
+			TrinityALImpl::ResourceBarrier( commandList, desc.DepthOrArraySize, srv2uavDescs.data() );
 
 			// Bind the mip subresources
 			commandList->SetComputeRootDescriptorTable( TrinityALImpl::GenerateMipsResources::TargetTexture, uavH );
@@ -412,10 +412,10 @@ struct Tr2TextureAL::MipMapGenerator
 				( mipHeight + TrinityALImpl::GenerateMipsResources::ThreadGroupSize - 1 ) / TrinityALImpl::GenerateMipsResources::ThreadGroupSize,
 				desc.DepthOrArraySize );
 
-			commandList->ResourceBarrier( 1, &barrierUAV );
+			TrinityALImpl::ResourceBarrier( commandList, 1, &barrierUAV );
 
 			// Transition the mip to an SRV
-			commandList->ResourceBarrier( desc.DepthOrArraySize, uav2srvDescs.data() );
+			TrinityALImpl::ResourceBarrier( commandList, desc.DepthOrArraySize, uav2srvDescs.data() );
 
 			// Offset the descriptor heap handles
 			uavH.ptr += descriptorSize;
@@ -430,18 +430,18 @@ struct Tr2TextureAL::MipMapGenerator
 				TrinityALImpl::Transition( resource, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST )
 			};
 
-			commandList->ResourceBarrier( 2, barriers );
+			TrinityALImpl::ResourceBarrier( commandList, 2, barriers );
 			// Copy the entire resource back
 			commandList->CopyResource( resource, staging );
 
 			// Transition the target resource back to pixel shader resource
 			auto barrier = TrinityALImpl::Transition( resource, D3D12_RESOURCE_STATE_COPY_DEST, resourceState );
-			commandList->ResourceBarrier( 1, &barrier );
+			TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 		}
 		else if( ( resourceState & D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE ) == 0 )
 		{
 			auto barrier = TrinityALImpl::Transition( resource, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, resourceState );
-			commandList->ResourceBarrier( 1, &barrier );
+			TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 		}
 
 		m_device.DirtyDescriptorCache();
@@ -477,27 +477,27 @@ struct Tr2TextureAL::MipMapGenerator
 		else
 		{
 			auto restore = TrinityALImpl::Transition( m_resourceCopy, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST );
-			commandList->ResourceBarrier( 1, &restore );
+			TrinityALImpl::ResourceBarrier( commandList, 1, &restore );
 		}
 
 		// Copy the resource data
 		auto barrier = TrinityALImpl::Transition( resource, resourceState, D3D12_RESOURCE_STATE_COPY_SOURCE );
-		commandList->ResourceBarrier( 1, &barrier );
+		TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 		commandList->CopyResource( m_resourceCopy, resource );
 		barrier = TrinityALImpl::Transition( m_resourceCopy, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE );
-		commandList->ResourceBarrier( 1, &barrier );
+		TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 
 		// Generate the mips
 		GenerateMips_UnorderedAccessPath( m_resourceCopy, DXGI_FORMAT_R8G8B8A8_UNORM, commandList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE );
 
 		// Direct copy back
 		barrier = TrinityALImpl::Transition( m_resourceCopy, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_COPY_SOURCE );
-		commandList->ResourceBarrier( 1, &barrier );
+		TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 		barrier = TrinityALImpl::Transition( resource, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST );
-		commandList->ResourceBarrier( 1, &barrier );
+		TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 		commandList->CopyResource( resource, m_resourceCopy );
 		barrier = TrinityALImpl::Transition( resource, D3D12_RESOURCE_STATE_COPY_DEST, resourceState );
-		commandList->ResourceBarrier( 1, &barrier );
+		TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 		return S_OK;
 	}
 
@@ -550,33 +550,33 @@ struct Tr2TextureAL::MipMapGenerator
 		else
 		{
 			auto restore = TrinityALImpl::Transition( m_bgrAliasCopy, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST );
-			commandList->ResourceBarrier( 1, &restore );
+			TrinityALImpl::ResourceBarrier( commandList, 1, &restore );
 		}
 
 		// Copy the resource data
 		auto barrier = TrinityALImpl::AliasBarrier( nullptr, m_bgrAliasCopy );
-		commandList->ResourceBarrier( 1, &barrier );
+		TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 		barrier = TrinityALImpl::Transition( resource, resourceState, D3D12_RESOURCE_STATE_COPY_SOURCE );
-		commandList->ResourceBarrier( 1, &barrier );
+		TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 		commandList->CopyResource( m_bgrAliasCopy, resource );
 
 		// Generate the mips
 		barrier = TrinityALImpl::AliasBarrier( m_bgrAliasCopy, m_bgrResourceCopy );
-		commandList->ResourceBarrier( 1, &barrier );
+		TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 		barrier = TrinityALImpl::Transition( m_bgrResourceCopy, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE );
-		commandList->ResourceBarrier( 1, &barrier );
+		TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 		FORWARD_HR( GenerateMips_UnorderedAccessPath( m_bgrResourceCopy, DXGI_FORMAT_R8G8B8A8_UNORM, commandList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE ) );
 
 		// Direct copy back
 		barrier = TrinityALImpl::AliasBarrier( m_bgrResourceCopy, m_bgrAliasCopy );
-		commandList->ResourceBarrier( 1, &barrier );
+		TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 		barrier = TrinityALImpl::Transition( m_bgrAliasCopy, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_COPY_SOURCE );
-		commandList->ResourceBarrier( 1, &barrier );
+		TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 		barrier = TrinityALImpl::Transition( resource, D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_COPY_DEST );
-		commandList->ResourceBarrier( 1, &barrier );
+		TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 		commandList->CopyResource( resource, m_bgrAliasCopy );
 		barrier = TrinityALImpl::Transition( resource, D3D12_RESOURCE_STATE_COPY_DEST, resourceState );
-		commandList->ResourceBarrier( 1, &barrier );
+		TrinityALImpl::ResourceBarrier( commandList, 1, &barrier );
 		return S_OK;
 	}
 
@@ -613,6 +613,82 @@ void FlushBarriersMaybe( const Tr2TextureAL& tex, Tr2RenderContextAL& renderCont
 		renderContext.FlushBarriersDx12( tex.GetResourceDx12() );
 	}
 }
+
+
+
+
+Tr2ReadbackAL::Tr2ReadbackAL( CComPtr<ID3D12Resource> readScratch, uint32_t rowPitch, uint64_t frameNumber, Tr2PrimaryRenderContextAL* owner )
+{
+	m_readScratch = readScratch;
+	m_rowPitch = rowPitch;
+	m_frameNumber = frameNumber;
+	m_owner = owner;
+}
+
+Tr2ReadbackAL::~Tr2ReadbackAL()
+{
+	Destroy();
+}
+
+bool Tr2ReadbackAL::IsReady( Tr2PrimaryRenderContextAL& renderContext ) const
+{
+	return renderContext.GetRenderedFrameNumber() >= m_frameNumber;
+}
+
+ALResult Tr2ReadbackAL::Map( const void*& pointer, uint32_t& rowPitch, Tr2PrimaryRenderContextAL& renderContext )
+{
+	if( !m_pointer )
+	{
+		//Map first, so that in case we need to wait for the GPU, we can map it before we start waiting
+		CR_RETURN_HR( m_readScratch->Map( 0, nullptr, (void**)&m_pointer ) );
+
+		if( !m_pointer )
+		{
+			return E_FAIL;
+		}
+
+		if( !IsReady( renderContext ) )
+		{
+			CR_RETURN_HR( renderContext.FlushAndSyncDx12( renderContext ) );
+		}
+	}
+
+	pointer = m_pointer;
+	rowPitch = m_rowPitch;
+
+	return S_OK;
+}
+
+void Tr2ReadbackAL::Destroy()
+{
+	if( m_pointer )
+	{
+		m_readScratch->Unmap( 0, nullptr );
+		m_pointer = nullptr;
+	}
+	if( m_readScratch )
+	{
+		RELEASE_LATER( m_owner, m_readScratch );
+		m_readScratch = nullptr;
+	}
+	m_owner = nullptr;
+}
+
+void Tr2ReadbackAL::Describe( Tr2DeviceResourceDescriptionAL& description ) const
+{
+}
+
+Tr2ALMemoryType Tr2ReadbackAL::GetMemoryClass() const
+{
+	return AL_MEMORY_MANAGED;
+}
+
+bool Tr2ReadbackAL::IsValid() const
+{
+	return m_readScratch != nullptr;
+}
+
+
 
 
 Tr2TextureAL::Tr2TextureAL() :
@@ -1080,7 +1156,11 @@ void Tr2TextureAL::Destroy()
 	}
 	m_writeScratches.clear();
 	m_mappedScratch = m_writeScratches.end();
-	m_readScratch = nullptr;
+	if( m_readScratch )
+	{
+		RELEASE_LATER( m_owner, m_readScratch );
+		m_readScratch = nullptr;
+	}
 	m_currentTextureIndex = 0;
 	memset( &m_desc, 0, sizeof( m_desc ) );
 	m_msaa = Tr2MsaaDesc();
@@ -1193,7 +1273,8 @@ ALResult Tr2TextureAL::GenerateMipMaps( Tr2RenderContextAL& renderContext )
 		return E_INVALIDCALL;
 	}
 
-	renderContext.SetResourceSet( ::Tr2ResourceSetAL() );
+	renderContext.ResetResourceBindings();
+	renderContext.FlushBarriersDx12();
 	renderContext.FlushBarriersDx12( m_textures[0] );
 
 	renderContext.m_dirtyPso = true;
@@ -1482,7 +1563,60 @@ void Tr2TextureAL::UnmapForWriting( Tr2RenderContextAL& renderContext )
 	m_mappedScratch = m_writeScratches.end();
 }
 
-ALResult Tr2TextureAL::MapForReading( const Tr2TextureSubresource& region, bool synchronize, const void*& data, uint32_t& pitch, Tr2RenderContextAL& renderContext )
+
+std::shared_ptr<Tr2ReadbackAL> Tr2TextureAL::CreateReadback( const Tr2TextureSubresource& region, Tr2PrimaryRenderContextAL& renderContext )
+{
+
+	if( !IsValid() )
+	{
+		return nullptr;
+	}
+	if( !renderContext.IsValid() )
+	{
+		return nullptr;
+	}
+	if( !HasFlag( m_cpuUsage, Tr2CpuUsage::READ ) )
+	{
+		return nullptr;
+	}
+
+
+
+	auto texture = GetResourceDx12();
+
+	CComPtr<ID3D12Resource> scratch;
+	auto totalSize = GetRequiredIntermediateSize( texture, 0, 1 );
+	auto scratchHeap = HeapDesc( D3D12_HEAP_TYPE_READBACK );
+	auto scratchDesc = BufferDesc( totalSize );
+	CR_RETURN_VAL( m_owner->m_device->CreateCommittedResource(
+					   &scratchHeap,
+					   D3D12_HEAP_FLAG_NONE,
+					   &scratchDesc,
+					   D3D12_RESOURCE_STATE_COPY_DEST,
+					   nullptr,
+					   IID_PPV_ARGS( &scratch ) ),
+				   nullptr );
+
+	renderContext.ResourceBarrierDx12( Transition( texture, m_defaultState, D3D12_RESOURCE_STATE_COPY_SOURCE ) );
+	renderContext.FlushBarriersDx12( texture );
+
+	auto subresource = region.m_startFace * m_desc.GetTrueMipCount() + region.m_startMipLevel;
+	D3D12_RESOURCE_DESC desc = texture->GetDesc();
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT layout;
+	m_owner->m_device->GetCopyableFootprints( &desc, subresource, 1, 0, &layout, nullptr, nullptr, nullptr );
+	layout.Offset = 0;
+	D3D12_TEXTURE_COPY_LOCATION Src = { texture, D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX, subresource };
+	D3D12_TEXTURE_COPY_LOCATION Dst = { scratch, D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT, layout };
+
+	renderContext.m_commandList->CopyTextureRegion( &Dst, 0, 0, 0, &Src, nullptr );
+
+	renderContext.ResourceBarrierDx12( Transition( texture, D3D12_RESOURCE_STATE_COPY_SOURCE, m_defaultState ) );
+	FlushBarriersMaybe( *this, renderContext );
+
+	return std::make_shared<Tr2ReadbackAL>( scratch, layout.Footprint.RowPitch, renderContext.GetRecordingFrameNumber(), &renderContext );
+}
+
+ALResult Tr2TextureAL::MapForReading( const Tr2TextureSubresource& region, const void*& data, uint32_t& pitch, Tr2RenderContextAL& renderContext )
 {
 	if( !IsValid() )
 	{
@@ -1530,15 +1664,12 @@ ALResult Tr2TextureAL::MapForReading( const Tr2TextureSubresource& region, bool 
 	renderContext.ResourceBarrierDx12( Transition( texture, D3D12_RESOURCE_STATE_COPY_SOURCE, m_defaultState ) );
 	FlushBarriersMaybe( *this, renderContext );
 
-	if( synchronize )
+	auto hr = renderContext.FlushAndSyncDx12();
+	if( FAILED( hr ) )
 	{
-		auto hr = renderContext.FlushAndSyncDx12();
-		if( FAILED( hr ) )
-		{
-			RELEASE_LATER( m_owner, scratch );
-			scratch = nullptr;
-			return hr;
-		}
+		RELEASE_LATER( m_owner, scratch );
+		scratch = nullptr;
+		return hr;
 	}
 
 	CR_RETURN_HR( scratch->Map( 0, nullptr, (void**)&data ) );
