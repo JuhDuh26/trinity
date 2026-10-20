@@ -3,57 +3,42 @@
 #include "StdAfx.h"
 #include "TriCurveSampler.h"
 
-#include <ITriFunction.h>
+TriCurveSampler TriCurveSampler::Find( IRoot* source, const Be::VarEntry* valueEntry )
+{
+	// The interface is looked up once here rather than on every sample. The raw
+	// pointer stays valid for as long as source does: the smart pointers only
+	// hold their own reference while we look.
+	TriCurveSampler sampler;
 
-namespace
-{
-// Each goes through GetValueAt, which typed curves implement without touching
-// the state UpdateValue keeps - so a curve shared with others, or one that
-// fires events as it advances, is unaffected by being sampled.
-void SampleScalar( IRoot* curve, double time, Vector4& out )
-{
-	out.x = ITriScalarFunctionPtr( BlueCastPtr( curve ) )->GetValueAt( time );
-}
-
-void SampleVector( IRoot* curve, double time, Vector4& out )
-{
-	ITriVectorFunctionPtr( BlueCastPtr( curve ) )->GetValueAt( reinterpret_cast<Vector3*>( &out ), time );
-}
-
-void SampleQuaternion( IRoot* curve, double time, Vector4& out )
-{
-	ITriQuaternionFunctionPtr( BlueCastPtr( curve ) )->GetValueAt( reinterpret_cast<Quaternion*>( &out ), time );
-}
-
-void SampleColor( IRoot* curve, double time, Vector4& out )
-{
-	ITriColorFunctionPtr( BlueCastPtr( curve ) )->GetValueAt( reinterpret_cast<Color*>( &out ), time );
-}
-}
-
-TriCurveSampleFunc FindCurveSampleFunc( IRoot* source, const Be::VarEntry* valueEntry )
-{
 	if( valueEntry->mType == Be::FLOAT )
 	{
-		return ITriScalarFunctionPtr( BlueCastPtr( source ) ) ? SampleScalar : nullptr;
-	}
-
-	if( valueEntry->mType != Be::FLOATARRAY )
-	{
-		return nullptr;
-	}
-
-	switch( valueEntry->GetFloatArraySize() )
-	{
-	case 3:
-		return ITriVectorFunctionPtr( BlueCastPtr( source ) ) ? SampleVector : nullptr;
-	case 4:
-		if( ITriQuaternionFunctionPtr( BlueCastPtr( source ) ) )
+		if( ITriScalarFunctionPtr scalar = BlueCastPtr( source ) )
 		{
-			return SampleQuaternion;
+			sampler.m_kind = Kind::Scalar;
+			sampler.m_curve.scalar = scalar.p;
 		}
-		return ITriColorFunctionPtr( BlueCastPtr( source ) ) ? SampleColor : nullptr;
-	default:
-		return nullptr;
 	}
+	else if( valueEntry->mType == Be::FLOATARRAY && valueEntry->GetFloatArraySize() == 3 )
+	{
+		if( ITriVectorFunctionPtr vector = BlueCastPtr( source ) )
+		{
+			sampler.m_kind = Kind::Vector;
+			sampler.m_curve.vector = vector.p;
+		}
+	}
+	else if( valueEntry->mType == Be::FLOATARRAY && valueEntry->GetFloatArraySize() == 4 )
+	{
+		if( ITriQuaternionFunctionPtr quaternion = BlueCastPtr( source ) )
+		{
+			sampler.m_kind = Kind::Quaternion;
+			sampler.m_curve.quaternion = quaternion.p;
+		}
+		else if( ITriColorFunctionPtr color = BlueCastPtr( source ) )
+		{
+			sampler.m_kind = Kind::Color;
+			sampler.m_curve.color = color.p;
+		}
+	}
+
+	return sampler;
 }
