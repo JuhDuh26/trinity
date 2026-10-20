@@ -2,6 +2,7 @@
 
 #include "StdAfx.h"
 #include "Tr2CurveScalar.h"
+#include "Tr2CurveSegmentSearch.h"
 
 extern Be::VarChooser Tr2CurveInterpolationChooser[];
 extern Be::VarChooser Tr2CurveTangentTypeChooser[];
@@ -132,6 +133,12 @@ float Tr2CurveScalar::GetValueAt( double time )
 // --------------------------------------------------------------------------------
 float Tr2CurveScalar::GetValue( double time ) const
 {
+	return SampleValue( time, m_lastSegment );
+}
+
+// --------------------------------------------------------------------------------
+float Tr2CurveScalar::SampleValue( double time, size_t& segmentCache ) const
+{
 	if( m_keys.empty() )
 	{
 		return 0;
@@ -169,70 +176,8 @@ float Tr2CurveScalar::GetValue( double time ) const
 	}
 
 	float t = GetLocalTime( time );
-
-	if( m_lastSegment + 1 < count )
-	{
-		// try cached last segment first
-		auto& k0 = m_keys[m_lastSegment];
-		auto& k1 = m_keys[m_lastSegment + 1];
-
-		if( t >= k0.m_time && t < k1.m_time )
-		{
-			return GetSegmentValue( t, k0, k1 );
-		}
-
-		if( m_lastSegment + 2 < count )
-		{
-			// try a segment to the right of the cached one
-			auto& k0 = m_keys[m_lastSegment + 1];
-			auto& k1 = m_keys[m_lastSegment + 2];
-
-			if( t >= k0.m_time && t < k1.m_time )
-			{
-				++m_lastSegment;
-				return GetSegmentValue( t, k0, k1 );
-			}
-		}
-
-		if( m_lastSegment > 1 )
-		{
-			// try a segment to the left of the cached one
-			auto& k0 = m_keys[m_lastSegment - 1];
-			auto& k1 = m_keys[m_lastSegment];
-
-			if( t >= k0.m_time && t < k1.m_time )
-			{
-				--m_lastSegment;
-				return GetSegmentValue( t, k0, k1 );
-			}
-		}
-	}
-
-	// cache miss: keys are sorted by time (OnKeysChanged), so binary search for
-	// the segment. That matters when one curve is sampled at several times a
-	// frame - bindings with time offsets - and the cached segment keeps moving.
-	auto next = std::upper_bound( m_keys.begin(), m_keys.end(), t, []( float time, const Tr2CurveScalarKey& key ) { return time < key.m_time; } );
-	size_t found = size_t( next - m_keys.begin() );
-	if( found > 0 && found < count && t >= m_keys[found - 1].m_time && t < m_keys[found].m_time )
-	{
-		m_lastSegment = found - 1;
-		return GetSegmentValue( t, m_keys[found - 1], m_keys[found] );
-	}
-
-	// keys edited out of order without OnKeysChanged: try all segments
-	for( size_t i = 0; i + 1 < count; ++i )
-	{
-		auto& k0 = m_keys[i];
-		auto& k1 = m_keys[i + 1];
-
-		if( t >= k0.m_time && t < k1.m_time )
-		{
-			m_lastSegment = int32_t( i );
-			return GetSegmentValue( t, k0, k1 );
-		}
-	}
-	m_lastSegment = count - 2;
-	return GetSegmentValue( t, m_keys[count - 2], m_keys[count - 1] );
+	size_t i = FindCurveSegment( m_keys, t, segmentCache );
+	return GetSegmentValue( t, m_keys[i], m_keys[i + 1] );
 }
 
 // --------------------------------------------------------------------------------

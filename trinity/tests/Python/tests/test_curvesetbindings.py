@@ -1,5 +1,6 @@
 # Copyright © 2026 CCP ehf.
 
+import math
 import unittest
 
 import trinity
@@ -110,6 +111,20 @@ class TestCurveSetBindingTimeOffset(unittest.TestCase):
         _ApplyAt(self.curveSet, 2.0)
         for actual, expected in zip(destination.value, (0.7, 1.4, 2.1, 2.8)):
             self.assertAlmostEqual(actual, expected, places=4)
+
+    def test_offset_samples_quaternion_curve(self):
+        # 0 to 90 degrees about z over 10 seconds: halfway is 45 degrees,
+        # whether the curve slerps or normalises a lerp.
+        curve = trinity.Tr2CurveQuaternion()
+        curve.AddKey(0.0, (0.0, 0.0, 0.0, 1.0))
+        curve.AddKey(10.0, (0.0, 0.0, math.sin(math.pi / 4.0), math.cos(math.pi / 4.0)))
+        self.curveSet.curves.append(curve)
+        destination = _Bind(self.curveSet, curve, 'currentValue', timeOffset=2.0,
+                            destination=trinity.Tr2Vector4Parameter())
+        _ApplyAt(self.curveSet, 7.0)
+        expected = (0.0, 0.0, math.sin(math.pi / 8.0), math.cos(math.pi / 8.0))
+        for actual, wanted in zip(destination.value, expected):
+            self.assertAlmostEqual(actual, wanted, places=4)
 
     def test_offset_on_long_curve_finds_the_right_key_segment(self):
         # Sampling one curve at two times far apart keeps missing its cached key
