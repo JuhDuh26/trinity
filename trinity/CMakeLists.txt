@@ -200,6 +200,7 @@ set(_SOURCES
     Curves/Tr2CurveScalar.cpp
     Curves/Tr2CurveScalar.h
     Curves/Tr2CurveScalar_Blue.cpp
+    Curves/Tr2CurveSegmentSearch.h
     Curves/Tr2CurveScalarExpression.cpp
     Curves/Tr2CurveScalarExpression.h
     Curves/Tr2CurveScalarExpression_Blue.cpp

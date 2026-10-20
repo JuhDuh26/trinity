@@ -2,6 +2,7 @@
 
 #include "StdAfx.h"
 #include "Tr2CurveQuaternion.h"
+#include "Tr2CurveSegmentSearch.h"
 
 extern Be::VarChooser Tr2CurveInterpolationChooser[];
 
@@ -107,6 +108,12 @@ float Tr2CurveQuaternion::Length()
 // --------------------------------------------------------------------------------
 Quaternion Tr2CurveQuaternion::GetValue( double time ) const
 {
+	return SampleValue( time, m_lastSegment );
+}
+
+// --------------------------------------------------------------------------------
+Quaternion Tr2CurveQuaternion::SampleValue( double time, size_t& segmentCache ) const
+{
 	if( m_keys.empty() )
 	{
 		return Quaternion( 0, 0, 0, 1 );
@@ -130,59 +137,8 @@ Quaternion Tr2CurveQuaternion::GetValue( double time ) const
 	}
 
 	float t = GetLocalTime( time );
-
-	if( m_lastSegment + 1 < count )
-	{
-		// try cached last segment first
-		auto& k0 = m_keys[m_lastSegment];
-		auto& k1 = m_keys[m_lastSegment + 1];
-
-		if( t >= k0.m_time && t < k1.m_time )
-		{
-			return GetSegmentValue( t, k0, k1 );
-		}
-
-		if( m_lastSegment + 2 < count )
-		{
-			// try a segment to the right of the cached one
-			auto& k0 = m_keys[m_lastSegment + 1];
-			auto& k1 = m_keys[m_lastSegment + 2];
-
-			if( t >= k0.m_time && t < k1.m_time )
-			{
-				++m_lastSegment;
-				return GetSegmentValue( t, k0, k1 );
-			}
-		}
-
-		if( m_lastSegment > 1 )
-		{
-			// try a segment to the left of the cached one
-			auto& k0 = m_keys[m_lastSegment - 1];
-			auto& k1 = m_keys[m_lastSegment];
-
-			if( t >= k0.m_time && t < k1.m_time )
-			{
-				--m_lastSegment;
-				return GetSegmentValue( t, k0, k1 );
-			}
-		}
-	}
-
-	// cache miss: try all segments
-	for( size_t i = 0; i + 1 < count; ++i )
-	{
-		auto& k0 = m_keys[i];
-		auto& k1 = m_keys[i + 1];
-
-		if( t >= k0.m_time && t < k1.m_time )
-		{
-			m_lastSegment = int32_t( i );
-			return GetSegmentValue( t, k0, k1 );
-		}
-	}
-	m_lastSegment = count - 2;
-	return GetSegmentValue( t, m_keys[count - 2], m_keys[count - 1] );
+	size_t i = FindCurveSegment( m_keys, t, segmentCache );
+	return GetSegmentValue( t, m_keys[i], m_keys[i + 1] );
 }
 
 // --------------------------------------------------------------------------------
