@@ -10,24 +10,24 @@ namespace
 // Each goes through GetValueAt, which typed curves implement without touching
 // the state UpdateValue keeps - so a curve shared with others, or one that
 // fires events as it advances, is unaffected by being sampled.
-void SampleScalar( IRoot* curve, double time, void* out )
+void SampleScalar( IRoot* curve, double time, Vector4& out )
 {
-	*static_cast<float*>( out ) = ITriScalarFunctionPtr( BlueCastPtr( curve ) )->GetValueAt( time );
+	out.x = ITriScalarFunctionPtr( BlueCastPtr( curve ) )->GetValueAt( time );
 }
 
-void SampleVector( IRoot* curve, double time, void* out )
+void SampleVector( IRoot* curve, double time, Vector4& out )
 {
-	ITriVectorFunctionPtr( BlueCastPtr( curve ) )->GetValueAt( static_cast<Vector3*>( out ), time );
+	ITriVectorFunctionPtr( BlueCastPtr( curve ) )->GetValueAt( reinterpret_cast<Vector3*>( &out ), time );
 }
 
-void SampleQuaternion( IRoot* curve, double time, void* out )
+void SampleQuaternion( IRoot* curve, double time, Vector4& out )
 {
-	ITriQuaternionFunctionPtr( BlueCastPtr( curve ) )->GetValueAt( static_cast<Quaternion*>( out ), time );
+	ITriQuaternionFunctionPtr( BlueCastPtr( curve ) )->GetValueAt( reinterpret_cast<Quaternion*>( &out ), time );
 }
 
-void SampleColor( IRoot* curve, double time, void* out )
+void SampleColor( IRoot* curve, double time, Vector4& out )
 {
-	ITriColorFunctionPtr( BlueCastPtr( curve ) )->GetValueAt( static_cast<Color*>( out ), time );
+	ITriColorFunctionPtr( BlueCastPtr( curve ) )->GetValueAt( reinterpret_cast<Color*>( &out ), time );
 }
 }
 

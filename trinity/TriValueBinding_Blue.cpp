@@ -89,9 +89,12 @@ const Be::ClassInfo* TriValueBinding::ExposeToBlue()
 			"the same curve at different times, without duplicating the curve. The\n"
 			"curve itself is not moved, so it can be shared freely. A looped time\n"
 			"range on the curve set wraps the offset time into the range.\n"
-			"Applies when the binding is run by a curve set and its source is the\n"
-			"currentValue of a scalar, vector, quaternion or color curve; otherwise\n"
-			"it is ignored with a warning.",
+			"Only applies when the source is the currentValue of a scalar, vector,\n"
+			"quaternion or color curve - any other source logs a warning and is\n"
+			"copied as it stands - and only when a curve set applies the binding.\n"
+			"Bindings run without a curve set time (lens flares, child links, socket\n"
+			"parameters, dynamic bindings) copy the curve's current value and\n"
+			"silently ignore the offset.",
 			Be::READWRITE | Be::PERSIST | Be::NOTIFY )
 #if BLUE_WITH_PYTHON
 		MAP_ATTRIBUTE(
