@@ -7,8 +7,8 @@
 #include "include/ITriColor.h"
 #include "include/ITriQuaternion.h"
 #include "include/ITriMatrix.h"
-
-#include <ITriFunction.h>
+#include "Curves/TriCurveSampler.h"
+#include "Curves/TriCurveSetTime.h"
 
 TriValueBinding::TriValueBinding( IRoot* lockobj ) :
 	m_isWeak( false ),
@@ -20,6 +20,8 @@ TriValueBinding::TriValueBinding( IRoot* lockobj ) :
 	m_scale( 1.0f ),
 	m_offset( 0.0f, 0.0f, 0.0f, 0.0f ),
 	m_timeOffset( 0.0f ),
+	m_sampleFunc( nullptr ),
+	m_sampleOffset( 0 ),
 	m_sourceItemOffset( 0 ),
 	m_destItemOffset( 0 )
 {
@@ -34,24 +36,20 @@ TriValueBinding::~TriValueBinding()
 	}
 }
 
-void TriValueBinding::CopyValue()
+bool TriValueBinding::CanCopy() const
 {
 	if( !m_isEnabled )
 	{
-		return;
+		return false;
 	}
+	return !m_isWeak || ( m_sourceObjectWeak && m_destinationObjectWeak );
+}
 
-	if( m_isWeak )
-	{
-		if( !m_sourceObjectWeak || !m_destinationObjectWeak )
-		{
-			return;
-		}
-	}
-
+void TriValueBinding::CopyFrom( void* source )
+{
 	if( m_copyFunc )
 	{
-		if( m_copyFunc( (Be::Var*)m_source, (Be::Var*)m_destination, m_scale, m_offset ) )
+		if( m_copyFunc( (Be::Var*)source, (Be::Var*)m_destination, m_scale, m_offset ) )
 		{
 			if( m_notifyPtr )
 			{
@@ -65,29 +63,33 @@ void TriValueBinding::CopyValue()
 	}
 }
 
-void TriValueBinding::CopyValueSampledAt( double sampleTime, double restoreTime )
+void TriValueBinding::CopyValue()
 {
-	if( !m_isEnabled )
+	if( CanCopy() )
+	{
+		CopyFrom( m_source );
+	}
+}
+
+void TriValueBinding::CopyValueAt( const TriCurveSetTime& time )
+{
+	if( !CanCopy() )
 	{
 		return;
 	}
 
-	ITriFunctionPtr sourceCurve( BlueCastPtr( GetCurrentSourceObject() ) );
-	if( !sourceCurve )
+	if( m_timeOffset == 0.0f || !m_sampleFunc )
 	{
-		// The source isn't a curve, so there is no time to sample it at - copy
-		// whatever it holds, exactly as an unoffset binding would.
-		CopyValue();
+		CopyFrom( m_source );
 		return;
 	}
 
-	sourceCurve->UpdateValue( sampleTime );
-	CopyValue();
-
-	// Put the curve back where the curve set left it. Its current value is
-	// shared state: other bindings on the same curve, and anything reading
-	// currentValue, must not see this binding's time.
-	sourceCurve->UpdateValue( restoreTime );
+	// Evaluate the source curve at our own time into a local value rather than
+	// moving the curve: its current value is shared with other bindings and
+	// readers, and stateful curves must only ever see their curve set's time.
+	Vector4 sampled;
+	m_sampleFunc( GetCurrentSourceObject(), time.Shifted( m_timeOffset ), &sampled );
+	CopyFrom( reinterpret_cast<uint8_t*>( &sampled ) + m_sampleOffset );
 }
 
 bool TriValueBinding::OnModified( Be::Var* val )
@@ -353,6 +355,8 @@ void TriValueBinding::Initialize()
 	m_destination = NULL;
 	m_copyFunc = NULL;
 	m_notifyPtr = nullptr;
+	m_sampleFunc = nullptr;
+	m_sampleOffset = 0;
 
 	IRoot* sourceObject = GetCurrentSourceObject();
 	IRoot* destinationObject = GetCurrentDestinationObject();
@@ -415,9 +419,20 @@ void TriValueBinding::Initialize()
 		const Be::VarEntry* dstEntry = FindEntry( destAttr.c_str(), dstClassInfo, dstOffset );
 		if( srcEntry && dstEntry )
 		{
-			m_source = (void*)BLUEMAPMEMBEROFFSET( sourceObject, srcEntry, srcClassInfo, srcOffset );
+			void* sourceMember = (void*)BLUEMAPMEMBEROFFSET( sourceObject, srcEntry, srcClassInfo, srcOffset );
+			m_source = sourceMember;
 			m_destination = (void*)BLUEMAPMEMBEROFFSET( destinationObject, dstEntry, dstClassInfo, dstOffset );
 			dataSize = DetermineCopyFunc( srcEntry, dstEntry, dataSize, sourceFloatArrayAsFloat, destFloatArrayAsFloat );
+
+			// A time offset only means something for the value a curve produces, so
+			// only a typed curve bound through its currentValue can be sampled.
+			if( m_copyFunc && sourceAttr == "currentValue" )
+			{
+				m_sampleFunc = FindCurveSampleFunc( sourceObject, srcEntry );
+				// m_source may already point at one component (currentValue.y), so
+				// copy from the same place inside the sampled value.
+				m_sampleOffset = (uint8_t)( (uint8_t*)m_source - (uint8_t*)sourceMember );
+			}
 		}
 		else
 		{
@@ -455,6 +470,11 @@ void TriValueBinding::Initialize()
 				CCP_LOGWARN( "TriValueBinding: Rerouted destination too small!" );
 			}
 		}
+	}
+
+	if( m_timeOffset != 0.0f && !m_sampleFunc )
+	{
+		CCP_LOGWARN( "TriValueBinding \"%s\": timeOffset ignored - source '%s' is not the currentValue of a scalar, vector, quaternion or color curve", m_name.c_str(), m_sourceAttribute.c_str() );
 	}
 }
 
@@ -830,11 +850,6 @@ bool TriValueBinding::IsValid() const
 void TriValueBinding::SetScale( float scale )
 {
 	m_scale = scale;
-}
-
-void TriValueBinding::SetTimeOffset( float timeOffset )
-{
-	m_timeOffset = timeOffset;
 }
 
 IRoot* TriValueBinding::GetCurrentSourceObject() const
