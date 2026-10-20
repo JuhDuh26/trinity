@@ -111,6 +111,22 @@ class TestCurveSetBindingTimeOffset(unittest.TestCase):
         for actual, expected in zip(destination.value, (0.7, 1.4, 2.1, 2.8)):
             self.assertAlmostEqual(actual, expected, places=4)
 
+    def test_offset_on_long_curve_finds_the_right_key_segment(self):
+        # Sampling one curve at two times far apart keeps missing its cached key
+        # segment, so this goes through the curve's key search each time.
+        curve = trinity.Tr2CurveScalar()
+        for key in range(64):
+            curve.AddKey(float(key), float(key * 2), trinity.Tr2CurveInterpolation.LINEAR)
+        curveSet = trinity.TriCurveSet()
+        curveSet.curves.append(curve)
+        now = _Bind(curveSet, curve, 'currentValue')
+        earlier = _Bind(curveSet, curve, 'currentValue', timeOffset=20.0)
+        for step in range(0, 400):
+            time = 20.0 + step * 0.1
+            _ApplyAt(curveSet, time)
+            self.assertAlmostEqual(now.value, time * 2.0, places=3)
+            self.assertAlmostEqual(earlier.value, (time - 20.0) * 2.0, places=3)
+
     def test_offset_wraps_into_looped_time_range(self):
         destination = _Bind(self.curveSet, self.curve, 'currentValue', timeOffset=2.0)
         self.curveSet.SetTimeRange(0.0, 4.0, True)
