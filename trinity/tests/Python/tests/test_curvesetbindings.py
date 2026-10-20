@@ -55,6 +55,18 @@ class TestCurveSetBindingTimeOffset(unittest.TestCase):
         self.assertAlmostEqual(self.curve.currentValue, 5.0, places=4)
         self.assertAlmostEqual(plain.value, 5.0, places=4)
 
+    def test_offset_binding_leaves_curve_of_another_curve_set_alone(self):
+        owner = trinity.TriCurveSet()
+        curve = _LinearCurve()
+        owner.curves.append(curve)
+        _ApplyAt(owner, 8.0)
+
+        destination = _Bind(self.curveSet, curve, 'currentValue', timeOffset=2.0)
+        _ApplyAt(self.curveSet, 5.0)
+
+        self.assertAlmostEqual(destination.value, 3.0, places=4)
+        self.assertAlmostEqual(curve.currentValue, 8.0, places=4)
+
     def test_offset_wraps_into_looped_time_range(self):
         destination = _Bind(self.curveSet, self.curve, 'currentValue', timeOffset=2.0)
         self.curveSet.SetTimeRange(0.0, 4.0, True)
