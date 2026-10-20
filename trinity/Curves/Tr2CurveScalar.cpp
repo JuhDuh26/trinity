@@ -208,7 +208,18 @@ float Tr2CurveScalar::GetValue( double time ) const
 		}
 	}
 
-	// cache miss: try all segments
+	// cache miss: keys are sorted by time (OnKeysChanged), so binary search for
+	// the segment. That matters when one curve is sampled at several times a
+	// frame - bindings with time offsets - and the cached segment keeps moving.
+	auto next = std::upper_bound( m_keys.begin(), m_keys.end(), t, []( float time, const Tr2CurveScalarKey& key ) { return time < key.m_time; } );
+	size_t found = size_t( next - m_keys.begin() );
+	if( found > 0 && found < count && t >= m_keys[found - 1].m_time && t < m_keys[found].m_time )
+	{
+		m_lastSegment = found - 1;
+		return GetSegmentValue( t, m_keys[found - 1], m_keys[found] );
+	}
+
+	// keys edited out of order without OnKeysChanged: try all segments
 	for( size_t i = 0; i + 1 < count; ++i )
 	{
 		auto& k0 = m_keys[i];

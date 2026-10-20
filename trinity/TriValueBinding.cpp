@@ -20,7 +20,6 @@ TriValueBinding::TriValueBinding( IRoot* lockobj ) :
 	m_scale( 1.0f ),
 	m_offset( 0.0f, 0.0f, 0.0f, 0.0f ),
 	m_timeOffset( 0.0f ),
-	m_sampleFunc( nullptr ),
 	m_sampleOffset( 0 ),
 	m_sourceItemOffset( 0 ),
 	m_destItemOffset( 0 )
@@ -78,7 +77,7 @@ void TriValueBinding::CopyValueAt( const TriCurveSetTime& time )
 		return;
 	}
 
-	if( m_timeOffset == 0.0f || !m_sampleFunc )
+	if( m_timeOffset == 0.0f || !m_sampler )
 	{
 		CopyFrom( m_source );
 		return;
@@ -88,7 +87,7 @@ void TriValueBinding::CopyValueAt( const TriCurveSetTime& time )
 	// moving the curve: its current value is shared with other bindings and
 	// readers, and stateful curves must only ever see their curve set's time.
 	Vector4 sampled;
-	m_sampleFunc( GetCurrentSourceObject(), time.Shifted( m_timeOffset ), sampled );
+	m_sampler.Sample( time.Shifted( m_timeOffset ), sampled );
 	CopyFrom( reinterpret_cast<uint8_t*>( &sampled ) + m_sampleOffset );
 }
 
@@ -355,7 +354,7 @@ void TriValueBinding::Initialize()
 	m_destination = NULL;
 	m_copyFunc = NULL;
 	m_notifyPtr = nullptr;
-	m_sampleFunc = nullptr;
+	m_sampler = TriCurveSampler();
 	m_sampleOffset = 0;
 
 	IRoot* sourceObject = GetCurrentSourceObject();
@@ -428,7 +427,7 @@ void TriValueBinding::Initialize()
 			// only a typed curve bound through its currentValue can be sampled.
 			if( m_copyFunc && sourceAttr == "currentValue" )
 			{
-				m_sampleFunc = FindCurveSampleFunc( sourceObject, srcEntry );
+				m_sampler = TriCurveSampler::Find( sourceObject, srcEntry );
 				// m_source may already point at one component (currentValue.y), so
 				// copy from the same place inside the sampled value.
 				m_sampleOffset = (uint8_t)( (uint8_t*)m_source - (uint8_t*)sourceMember );
@@ -472,7 +471,7 @@ void TriValueBinding::Initialize()
 		}
 	}
 
-	if( m_timeOffset != 0.0f && !m_sampleFunc )
+	if( m_timeOffset != 0.0f && !m_sampler )
 	{
 		CCP_LOGWARN( "TriValueBinding \"%s\": timeOffset ignored - source '%s' is not the currentValue of a scalar, vector, quaternion or color curve", m_name.c_str(), m_sourceAttribute.c_str() );
 	}

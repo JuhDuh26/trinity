@@ -94,7 +94,7 @@ protected:
 	// Set when the source is a curve bound through its currentValue, so an
 	// offset binding can evaluate it at its own time without moving the curve.
 	// m_sampleOffset is where m_source sits inside that value.
-	TriCurveSampleFunc m_sampleFunc;
+	TriCurveSampler m_sampler;
 	uint8_t m_sampleOffset;
 
 	INotify* m_notifyPtr;
