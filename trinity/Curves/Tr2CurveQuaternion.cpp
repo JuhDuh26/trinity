@@ -36,34 +36,34 @@ Tr2CurveQuaternion::Tr2CurveQuaternion( IRoot* lockobj ) :
 // --------------------------------------------------------------------------------
 void Tr2CurveQuaternion::UpdateValue( double time )
 {
-	m_currentValue = GetValue( time );
+	m_currentValue = SampleValue( time, m_lastSegment );
 }
 
 // --------------------------------------------------------------------------------
 Quaternion* Tr2CurveQuaternion::Update( Quaternion* in, Be::Time time )
 {
-	*in = m_currentValue = GetValue( TimeAsDouble( time ) );
+	*in = m_currentValue = SampleValue( TimeAsDouble( time ), m_lastSegment );
 	return in;
 }
 
 // --------------------------------------------------------------------------------
 Quaternion* Tr2CurveQuaternion::Update( Quaternion* in, double time )
 {
-	*in = m_currentValue = GetValue( time );
+	*in = m_currentValue = SampleValue( time, m_lastSegment );
 	return in;
 }
 
 // --------------------------------------------------------------------------------
 Quaternion* Tr2CurveQuaternion::GetValueAt( Quaternion* in, Be::Time time )
 {
-	*in = GetValue( TimeAsDouble( time ) );
+	*in = SampleValue( TimeAsDouble( time ), m_lastSegment );
 	return in;
 }
 
 // --------------------------------------------------------------------------------
 Quaternion* Tr2CurveQuaternion::GetValueAt( Quaternion* in, double time )
 {
-	*in = GetValue( time );
+	*in = SampleValue( time, m_lastSegment );
 	return in;
 }
 

@@ -17,29 +17,33 @@
 template <typename Keys>
 size_t FindCurveSegment( const Keys& keys, float t, size_t& cachedSegment )
 {
+	// This runs for every curve evaluation, so the cache checks are written out
+	// rather than going through helpers that unoptimised builds would call.
 	const size_t count = keys.size();
-	const auto contains = [&]( size_t i ) { return t >= keys[i].m_time && t < keys[i + 1].m_time; };
+	const size_t cached = cachedSegment;
 
-	if( cachedSegment + 1 < count )
+	if( cached + 1 < count )
 	{
-		if( contains( cachedSegment ) )
+		const float start = keys[cached].m_time;
+		const float end = keys[cached + 1].m_time;
+		if( t >= start && t < end )
 		{
-			return cachedSegment;
+			return cached;
 		}
-		if( cachedSegment + 2 < count && contains( cachedSegment + 1 ) )
+		if( t >= end && cached + 2 < count && t < keys[cached + 2].m_time )
 		{
-			return ++cachedSegment;
+			return cachedSegment = cached + 1;
 		}
-		if( cachedSegment > 0 && contains( cachedSegment - 1 ) )
+		if( t < start && cached > 0 && t >= keys[cached - 1].m_time )
 		{
-			return --cachedSegment;
+			return cachedSegment = cached - 1;
 		}
 	}
 
 	// Keys are kept sorted by time, so binary search for the segment.
 	const auto next = std::upper_bound( keys.begin(), keys.end(), t, []( float time, const auto& key ) { return time < key.m_time; } );
 	const size_t found = size_t( next - keys.begin() );
-	if( found > 0 && found < count && contains( found - 1 ) )
+	if( found > 0 && found < count && t >= keys[found - 1].m_time && t < keys[found].m_time )
 	{
 		return cachedSegment = found - 1;
 	}
@@ -47,7 +51,7 @@ size_t FindCurveSegment( const Keys& keys, float t, size_t& cachedSegment )
 	// Keys edited out of order without being re-sorted: try every segment.
 	for( size_t i = 0; i + 1 < count; ++i )
 	{
-		if( contains( i ) )
+		if( t >= keys[i].m_time && t < keys[i + 1].m_time )
 		{
 			return cachedSegment = i;
 		}

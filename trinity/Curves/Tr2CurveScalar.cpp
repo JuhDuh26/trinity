@@ -97,25 +97,25 @@ void Tr2CurveScalar::SetName( const char* name )
 // --------------------------------------------------------------------------------
 void Tr2CurveScalar::UpdateValue( double time )
 {
-	m_currentValue = GetValue( time );
+	m_currentValue = SampleValue( time, m_lastSegment );
 }
 
 // --------------------------------------------------------------------------------
 float Tr2CurveScalar::Update( Be::Time time )
 {
-	return m_currentValue = GetValue( TimeAsDouble( time ) );
+	return m_currentValue = SampleValue( TimeAsDouble( time ), m_lastSegment );
 }
 
 // --------------------------------------------------------------------------------
 float Tr2CurveScalar::Update( double time )
 {
-	return m_currentValue = GetValue( time );
+	return m_currentValue = SampleValue( time, m_lastSegment );
 }
 
 // --------------------------------------------------------------------------------
 float Tr2CurveScalar::GetValueAt( Be::Time time )
 {
-	return GetValue( TimeAsDouble( time ) );
+	return SampleValue( TimeAsDouble( time ), m_lastSegment );
 }
 
 // --------------------------------------------------------------------------------
@@ -127,7 +127,7 @@ void Tr2CurveScalar::ScaleTime( float s )
 // --------------------------------------------------------------------------------
 float Tr2CurveScalar::GetValueAt( double time )
 {
-	return GetValue( time );
+	return SampleValue( time, m_lastSegment );
 }
 
 // --------------------------------------------------------------------------------
