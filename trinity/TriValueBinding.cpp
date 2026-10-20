@@ -88,7 +88,7 @@ void TriValueBinding::CopyValueAt( const TriCurveSetTime& time )
 	// moving the curve: its current value is shared with other bindings and
 	// readers, and stateful curves must only ever see their curve set's time.
 	Vector4 sampled;
-	m_sampleFunc( GetCurrentSourceObject(), time.Shifted( m_timeOffset ), &sampled );
+	m_sampleFunc( GetCurrentSourceObject(), time.Shifted( m_timeOffset ), sampled );
 	CopyFrom( reinterpret_cast<uint8_t*>( &sampled ) + m_sampleOffset );
 }
 

@@ -13,8 +13,25 @@ def _LinearCurve():
     return curve
 
 
-def _Bind(curveSet, source, sourceAttribute, timeOffset=0.0):
-    destination = trinity.Tr2FloatParameter()
+def _LinearVectorCurve():
+    # currentValue == (t, 2t, 3t) over [0, 10]
+    curve = trinity.Tr2CurveVector3()
+    curve.AddKey(0.0, (0.0, 0.0, 0.0), trinity.Tr2CurveInterpolation.LINEAR)
+    curve.AddKey(10.0, (10.0, 20.0, 30.0), trinity.Tr2CurveInterpolation.LINEAR)
+    return curve
+
+
+def _LinearColorCurve():
+    # currentValue == (t, 2t, 3t, 4t) / 10 over [0, 10]
+    curve = trinity.Tr2CurveColor()
+    curve.AddKey(0.0, (0.0, 0.0, 0.0, 0.0), trinity.Tr2CurveInterpolation.LINEAR)
+    curve.AddKey(10.0, (1.0, 2.0, 3.0, 4.0), trinity.Tr2CurveInterpolation.LINEAR)
+    return curve
+
+
+def _Bind(curveSet, source, sourceAttribute, timeOffset=0.0, destination=None):
+    if destination is None:
+        destination = trinity.Tr2FloatParameter()
     binding = trinity.TriValueBinding()
     binding.sourceObject = source
     binding.sourceAttribute = sourceAttribute
@@ -66,6 +83,33 @@ class TestCurveSetBindingTimeOffset(unittest.TestCase):
 
         self.assertAlmostEqual(destination.value, 3.0, places=4)
         self.assertAlmostEqual(curve.currentValue, 8.0, places=4)
+
+    def test_offset_samples_vector_curve(self):
+        curve = _LinearVectorCurve()
+        self.curveSet.curves.append(curve)
+        destination = _Bind(self.curveSet, curve, 'currentValue', timeOffset=2.0,
+                            destination=trinity.Tr2Vector3Parameter())
+        _ApplyAt(self.curveSet, 5.0)
+        for actual, expected in zip(destination.value, (3.0, 6.0, 9.0)):
+            self.assertAlmostEqual(actual, expected, places=4)
+
+    def test_offset_samples_one_component_of_vector_curve(self):
+        curve = _LinearVectorCurve()
+        self.curveSet.curves.append(curve)
+        y = _Bind(self.curveSet, curve, 'currentValue.y', timeOffset=2.0)
+        z = _Bind(self.curveSet, curve, 'currentValue.z', timeOffset=2.0)
+        _ApplyAt(self.curveSet, 5.0)
+        self.assertAlmostEqual(y.value, 6.0, places=4)
+        self.assertAlmostEqual(z.value, 9.0, places=4)
+
+    def test_offset_samples_color_curve(self):
+        curve = _LinearColorCurve()
+        self.curveSet.curves.append(curve)
+        destination = _Bind(self.curveSet, curve, 'currentValue', timeOffset=-5.0,
+                            destination=trinity.Tr2Vector4Parameter())
+        _ApplyAt(self.curveSet, 2.0)
+        for actual, expected in zip(destination.value, (0.7, 1.4, 2.1, 2.8)):
+            self.assertAlmostEqual(actual, expected, places=4)
 
     def test_offset_wraps_into_looped_time_range(self):
         destination = _Bind(self.curveSet, self.curve, 'currentValue', timeOffset=2.0)
