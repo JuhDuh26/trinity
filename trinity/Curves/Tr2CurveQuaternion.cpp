@@ -137,7 +137,12 @@ Quaternion Tr2CurveQuaternion::SampleValue( double time, size_t& segmentCache ) 
 	}
 
 	float t = GetLocalTime( time );
-	size_t i = FindCurveSegment( m_keys, t, segmentCache );
+	// Most frames land in the cached segment: check it here, without a call
+	size_t i = segmentCache;
+	if( i + 1 >= count || t < m_keys[i].m_time || t >= m_keys[i + 1].m_time )
+	{
+		i = FindCurveSegment( m_keys, t, segmentCache );
+	}
 	return GetSegmentValue( t, m_keys[i], m_keys[i + 1] );
 }
 
