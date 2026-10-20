@@ -115,10 +115,6 @@ public:
 private:
 	void UpdateWithCurrentTime();
 
-	// The time a binding with the given time offset samples its source curve
-	// at, wrapped into the active looped time range if there is one.
-	double GetOffsetTime( double time, float timeOffset ) const;
-
 	std::string m_name;
 	PITr2ValueBindingVector m_bindings;
 	PITriFunctionVector m_curves;

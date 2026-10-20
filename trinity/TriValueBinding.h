@@ -6,6 +6,7 @@
 
 
 #include "include/ITr2ValueBinding.h"
+#include "Curves/TriCurveSampler.h"
 
 BLUE_DECLARE( TriValueBinding );
 BLUE_DECLARE_VECTOR( TriValueBinding );
@@ -31,11 +32,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////
 	// ITr2ValueBinding
 	virtual void CopyValue();
-	virtual float GetTimeOffset() const
-	{
-		return m_timeOffset;
-	}
-	virtual void CopyValueSampledAt( double sampleTime, double restoreTime );
+	virtual void CopyValueAt( const TriCurveSetTime& time );
 
 	static const Be::VarEntry* FindEntry( const char* name, const Be::ClassInfo* type, ssize_t& offs );
 
@@ -47,13 +44,15 @@ public:
 	void SetSource( const std::string& sourceAttribute, IRootPtr sourceObject );
 	void SetDestination( const std::string& destAttribute, IRootPtr destination );
 	void SetScale( float scale );
-	void SetTimeOffset( float timeOffset );
 
 	void CreateWeakBinding( IRoot * source, const char* sourceAttr, IRoot* dest, const char* destAttr, float scale = 1.0f, const Vector4& offset = Vector4( 0.0f, 0.0f, 0.0f, 0.0f ) );
 
 	bool IsValid() const;
 
 protected:
+	bool CanCopy() const;
+	void CopyFrom( void* source );
+
 	IRoot* GetCurrentSourceObject() const;
 	IRoot* GetCurrentDestinationObject() const;
 
@@ -91,6 +90,12 @@ protected:
 	// touching the curve's own keys or time offset, so that several bindings
 	// can drive different targets from the same curve at different times.
 	float m_timeOffset;
+
+	// Set when the source is a curve bound through its currentValue, so an
+	// offset binding can evaluate it at its own time without moving the curve.
+	// m_sampleOffset is where m_source sits inside that value.
+	TriCurveSampleFunc m_sampleFunc;
+	uint8_t m_sampleOffset;
 
 	INotify* m_notifyPtr;
 

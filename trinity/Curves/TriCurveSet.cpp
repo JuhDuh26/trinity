@@ -2,6 +2,7 @@
 
 #include "StdAfx.h"
 #include "TriCurveSet.h"
+#include "TriCurveSetTime.h"
 #include "TriValueBinding.h"
 #include <ICurveSetDriver.h>
 #include "include/ITriDuration.h"
@@ -122,7 +123,7 @@ void TriCurveSet::Update( double time )
 
 			if( m_loopedTimeRange )
 			{
-				m_scaledTime = std::fmod( m_scaledTime - m_timeRangeMin, m_timeRangeMax - m_timeRangeMin ) + m_timeRangeMin;
+				m_scaledTime = WrapTimeIntoRange( m_scaledTime, m_timeRangeMin, m_timeRangeMax );
 			}
 			else
 			{
@@ -158,41 +159,11 @@ void TriCurveSet::Apply()
 		( *it )->UpdateValue( m_scaledTime );
 	}
 
+	const TriCurveSetTime time{ m_scaledTime, m_hasTimeRange && m_loopedTimeRange, m_timeRangeMin, m_timeRangeMax };
 	for( ITr2ValueBindingVector::const_iterator it = m_bindings.begin(); it != m_bindings.end(); ++it )
 	{
-		const float timeOffset = ( *it )->GetTimeOffset();
-		if( timeOffset != 0.0f )
-		{
-			( *it )->CopyValueSampledAt( GetOffsetTime( m_scaledTime, timeOffset ), m_scaledTime );
-		}
-		else
-		{
-			( *it )->CopyValue();
-		}
+		( *it )->CopyValueAt( time );
 	}
-}
-
-double TriCurveSet::GetOffsetTime( double time, float timeOffset ) const
-{
-	double offsetTime = time - (double)timeOffset;
-
-	// A looped time range is the window the curves play in, so an offset has to
-	// wrap inside it rather than walk off the start of the range.
-	if( m_hasTimeRange && m_loopedTimeRange )
-	{
-		const double span = m_timeRangeMax - m_timeRangeMin;
-		if( span > 0.0 )
-		{
-			offsetTime = std::fmod( offsetTime - m_timeRangeMin, span );
-			if( offsetTime < 0.0 )
-			{
-				offsetTime += span;
-			}
-			offsetTime += m_timeRangeMin;
-		}
-	}
-
-	return offsetTime;
 }
 
 void TriCurveSet::ApplyTime( double time )

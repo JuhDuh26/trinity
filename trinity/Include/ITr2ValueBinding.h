@@ -4,24 +4,16 @@
 #ifndef ITr2ValueBinding_H
 #define ITr2ValueBinding_H
 
+struct TriCurveSetTime;
+
 BLUE_INTERFACE( ITr2ValueBinding ) :
 	public IRoot
 {
 	virtual void CopyValue() = 0;
 
-	// Time offset, in seconds, that this binding applies to its source curve
-	// before copying the value. Zero for bindings that always read the source
-	// as it stands.
-	virtual float GetTimeOffset() const
-	{
-		return 0.0f;
-	}
-
-	// Copies the value with the source curve evaluated at sampleTime, then puts
-	// the curve back to restoreTime so that a curve shared by several bindings
-	// is left as its curve set left it. Only called for bindings that report a
-	// non-zero time offset.
-	virtual void CopyValueSampledAt( double sampleTime, double restoreTime )
+	// Copies the value for a curve set applying its bindings at the given time.
+	// Bindings that don't depend on that time copy their source as it stands.
+	virtual void CopyValueAt( const TriCurveSetTime& )
 	{
 		CopyValue();
 	}

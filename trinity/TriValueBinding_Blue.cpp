@@ -86,10 +86,13 @@ const Be::ClassInfo* TriValueBinding::ExposeToBlue()
 			"The curve is sampled at (curve set time - timeOffset), so a positive\n"
 			"value makes this binding lag behind the curve set, a negative one makes\n"
 			"it run ahead. This lets several bindings drive different targets from\n"
-			"the same curve at different times, without duplicating the curve.\n"
-			"Only applies to bindings whose source is a curve driven by the curve set\n"
-			"that owns them.",
-			Be::READWRITE | Be::PERSIST )
+			"the same curve at different times, without duplicating the curve. The\n"
+			"curve itself is not moved, so it can be shared freely. A looped time\n"
+			"range on the curve set wraps the offset time into the range.\n"
+			"Applies when the binding is run by a curve set and its source is the\n"
+			"currentValue of a scalar, vector, quaternion or color curve; otherwise\n"
+			"it is ignored with a warning.",
+			Be::READWRITE | Be::PERSIST | Be::NOTIFY )
 #if BLUE_WITH_PYTHON
 		MAP_ATTRIBUTE(
 			"copyValueCallable",
