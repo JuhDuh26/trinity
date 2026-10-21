@@ -126,6 +126,38 @@ class TestCurveSetBindingTimeOffset(unittest.TestCase):
         for actual, wanted in zip(destination.value, expected):
             self.assertAlmostEqual(actual, wanted, places=4)
 
+    def test_offset_samples_euler_rotation_curve(self):
+        curve = trinity.Tr2CurveEulerRotation()
+        curve.AddKey(0.0, (0.0, 0.0, 0.0), trinity.Tr2CurveInterpolation.LINEAR)
+        curve.AddKey(10.0, (1.0, 0.5, 0.25), trinity.Tr2CurveInterpolation.LINEAR)
+        self.curveSet.curves.append(curve)
+        destination = _Bind(self.curveSet, curve, 'currentValue', timeOffset=2.0,
+                            destination=trinity.Tr2Vector4Parameter())
+        _ApplyAt(self.curveSet, 7.0)
+        sampled = tuple(destination.value)
+        # The curve's own value two seconds earlier
+        _ApplyAt(self.curveSet, 5.0)
+        for actual, expected in zip(sampled, curve.currentValue):
+            self.assertAlmostEqual(actual, expected, places=4)
+
+    def test_offset_on_long_vector_curve_finds_each_channels_key_segment(self):
+        curve = trinity.Tr2CurveVector3()
+        for key in range(64):
+            curve.AddKey(float(key), (float(key), float(key * 2), float(key * 3)),
+                         trinity.Tr2CurveInterpolation.LINEAR)
+        curveSet = trinity.TriCurveSet()
+        curveSet.curves.append(curve)
+        now = _Bind(curveSet, curve, 'currentValue', destination=trinity.Tr2Vector3Parameter())
+        earlier = _Bind(curveSet, curve, 'currentValue', timeOffset=20.0,
+                        destination=trinity.Tr2Vector3Parameter())
+        for step in range(0, 400):
+            time = 20.0 + step * 0.1
+            _ApplyAt(curveSet, time)
+            for scale, actual in zip((1.0, 2.0, 3.0), now.value):
+                self.assertAlmostEqual(actual, time * scale, places=3)
+            for scale, actual in zip((1.0, 2.0, 3.0), earlier.value):
+                self.assertAlmostEqual(actual, (time - 20.0) * scale, places=3)
+
     def test_offset_on_long_curve_finds_the_right_key_segment(self):
         # Sampling one curve at two times far apart keeps missing its cached key
         # segment, so this goes through the curve's key search each time.
